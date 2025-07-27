@@ -1,4 +1,5 @@
 const Certificate = require("../models/Certificate");
+const Image = require("../models/Image");
 const QRCode = require("qrcode");
 const nodemailer = require("nodemailer");
 const Joi = require("joi");
@@ -98,7 +99,16 @@ exports.verifyCertificate = async (req, res) => {
       return res.status(404).json({ message: "Certificate not found" });
     }
 
-    res.json(certificate);
+    // Fetch associated background images
+    const images = await Image.find({ certificateId: uniqueId });
+    
+    // Add images to certificate response
+    const certificateWithImages = {
+      ...certificate.toObject(),
+      backgroundImages: images
+    };
+
+    res.json(certificateWithImages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

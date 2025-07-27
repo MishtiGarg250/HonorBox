@@ -12,6 +12,7 @@ const Generate = () => {
   const [qrCodeUrl, setQrCodeUrl] = useState("");
   const [backgroundImage, setBackgroundImage] = useState(null);
   const [uploadedImage, setUploadedImage] = useState("");
+  const [imageFile, setImageFile] = useState(null);
 
   const canvasRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -22,10 +23,10 @@ const Generate = () => {
 
   const fetchLatestImage = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/get-images`);
+      const response = await fetch(`${BACKEND_URL}/api/images/get-images`);
       const data = await response.json();
-      if (response.ok) {
-        setUploadedImage(data.imageUrl);
+      if (response.ok && data.length > 0) {
+        setUploadedImage(`data:image/jpeg;base64,${data[data.length - 1].image}`);
       }
     } catch (error) {
       console.error("Error fetching latest image:", error);
@@ -46,6 +47,12 @@ const Generate = () => {
       if (response.ok) {
         setUniqueId(data.certificate.uniqueId);
         setMessage(`Certificate generated successfully! ID: ${data.certificate.uniqueId}`);
+        
+        // Upload image with certificate ID if background image was selected
+        if (imageFile) {
+          uploadImageWithCertificateId(data.certificate.uniqueId);
+        }
+        
         const certLink = `${BACKEND_URL}/api/certificate/${data.certificate.uniqueId}`;
         QRCode.toDataURL(certLink, { width: 120 })
           .then((qrCodeUrl) => {
@@ -69,6 +76,30 @@ const Generate = () => {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setBackgroundImage(imageUrl);
+      setImageFile(file); // Store the file for later upload
+    }
+  };
+
+  const uploadImageWithCertificateId = async (certificateId) => {
+    if (!imageFile) return;
+
+    const formData = new FormData();
+    formData.append("image", imageFile);
+    formData.append("certificateId", certificateId);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/images/upload-image`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await response.json();
+      if (response.ok) {
+        console.log("Image uploaded with certificate ID:", data);
+      } else {
+        console.error("Failed to upload image:", data.message);
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
     }
   };
 
